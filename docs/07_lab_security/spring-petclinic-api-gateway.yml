@@ -2,30 +2,21 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app: messaging-emulator
-  name: messaging-emulator
+    app: api-gateway
+  name: api-gateway
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: messaging-emulator
+      app: api-gateway
   template:
     metadata:
       labels:
-        app: messaging-emulator
-        azure.workload.identity/use: "true"
+        app: api-gateway
     spec:
-      serviceAccountName: workload-identity-sa
-      volumes:
-      - name: secrets-store01-inline
-        csi: 
-          driver: secrets-store.csi.k8s.io
-          readOnly: true
-          volumeAttributes: 
-            secretProviderClass: "azure-kvname-user-msi"
       containers:
       - image: #image#
-        name: messaging-emulator
+        name: api-gateway
         env:
         - name: "CONFIG_SERVER_URL"
           valueFrom:
@@ -41,18 +32,9 @@ spec:
           value: >-
             {
                 "role": {   
-                    "name": "messaging-emulator"
+                    "name": "api-gateway"
                   }
             }
-        - name: SPRING_JMS_SERVICEBUS_CONNECTIONSTRING
-          valueFrom:
-            secretKeyRef:
-              name: sbsecret
-              key: sbconn
-        volumeMounts:
-        - name: secrets-store01-inline
-          mountPath: "/mnt/secrets-store"
-          readOnly: true
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -89,13 +71,15 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app: messaging-emulator
-  name: messaging-emulator
+    app: api-gateway
+  name: api-gateway
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
 spec:
   ports:
   - port: 8080
     protocol: TCP
     targetPort: 8080
   selector:
-    app: messaging-emulator
+    app: api-gateway
   type: LoadBalancer
